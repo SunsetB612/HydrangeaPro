@@ -1,24 +1,24 @@
-"""CLI主入口"""
+"""CLI main entry point"""
 
 import typer
 from typing import Optional
 from .core.metadata import MetadataManager
 
-app = typer.Typer(help="Hydrangea CLI - 查询Hydrangea数据集")
+app = typer.Typer(help="Hydrangea CLI - Query Hydrangea dataset")
 metadata_manager = MetadataManager()
 
 
 @app.command()
 def apps(
-    classification: Optional[str] = typer.Option(None, "--classification", help="按分类过滤应用"),
-    llm: Optional[str] = typer.Option(None, "--llm", help="按LLM过滤应用"),
-    llm_deployment: Optional[str] = typer.Option(None, "--llm-deployment", help="按LLM部署环境过滤应用"),
-    vdb: Optional[str] = typer.Option(None, "--vdb", help="按向量数据库过滤应用"),
-    vdb_deployment: Optional[str] = typer.Option(None, "--vdb-deployment", help="按向量数据库部署环境过滤应用"),
-    langchain: Optional[str] = typer.Option(None, "--langchain", help="按LangChain过滤应用"),
-    language: Optional[str] = typer.Option(None, "--language", help="按编程语言过滤应用")
+    classification: Optional[str] = typer.Option(None, "--classification", help="Filter applications by classification"),
+    llm: Optional[str] = typer.Option(None, "--llm", help="Filter applications by LLM"),
+    llm_deployment: Optional[str] = typer.Option(None, "--llm-deployment", help="Filter applications by LLM deployment environment"),
+    vdb: Optional[str] = typer.Option(None, "--vdb", help="Filter applications by vector database"),
+    vdb_deployment: Optional[str] = typer.Option(None, "--vdb-deployment", help="Filter applications by vector database deployment environment"),
+    langchain: Optional[str] = typer.Option(None, "--langchain", help="Filter applications by LangChain"),
+    language: Optional[str] = typer.Option(None, "--language", help="Filter applications by programming language")
 ):
-    """列出所有应用"""
+    """List all applications"""
     apps_list = metadata_manager.get_apps_by_filters(
         classification=classification,
         llm=llm,
@@ -39,9 +39,9 @@ def apps(
 
 @app.command()
 def bids(
-    app: Optional[str] = typer.Option(None, "--app", help="按应用过滤缺陷ID")
+    app: Optional[str] = typer.Option(None, "--app", help="Filter defect IDs by application")
 ):
-    """列出所有缺陷ID"""
+    """List all defect IDs"""
     defect_ids = metadata_manager.get_defect_ids(app=app)
     
     if not defect_ids:
@@ -54,17 +54,17 @@ def bids(
 
 @app.command()
 def info(
-    app: str = typer.Argument(..., help="应用名称"),
-    bid: str = typer.Argument(..., help="缺陷ID")
+    app: str = typer.Argument(..., help="Application name"),
+    bid: str = typer.Argument(..., help="Defect ID")
 ):
-    """显示缺陷元数据"""
+    """Display defect metadata"""
     defect_info = metadata_manager.get_defect_info(app, bid)
     
     if not defect_info:
         typer.echo(f"Defect not found: {app} - {bid}")
         return
     
-    # 格式化输出
+    # Format output
     typer.echo(f"app: {defect_info.get('app', 'N/A')}")
     typer.echo(f"repo: {defect_info.get('repo', 'N/A')}")
     typer.echo(f"commit: {defect_info.get('commit', 'N/A')}")
@@ -72,14 +72,14 @@ def info(
     typer.echo(f"type: {defect_info.get('type', 'N/A')}")
     typer.echo(f"case: {defect_info.get('case', 'N/A')}")
     
-    # 输出consequence
+    # Output consequence
     consequences = defect_info.get('consequence', [])
     if consequences:
         typer.echo("consequence:")
         for cons in consequences:
             typer.echo(f"  - {cons}")
     
-    # 输出locations
+    # Output locations
     locations = defect_info.get('locations', [])
     if locations:
         typer.echo("locations:")
@@ -89,12 +89,12 @@ def info(
 
 @app.command()
 def test(
-    app: str = typer.Argument(..., help="应用名称"),
-    bid: str = typer.Argument(..., help="缺陷ID"),
-    trigger: bool = typer.Option(False, "--trigger", help="显示触发测试")
+    app: str = typer.Argument(..., help="Application name"),
+    bid: str = typer.Argument(..., help="Defect ID"),
+    trigger: bool = typer.Option(False, "--trigger", help="Show trigger tests")
 ):
-    """显示测试信息（仅打印，不执行）"""
-    # 获取特定缺陷的信息
+    """Display test information (print only, do not execute)"""
+    # Get information for specific defect
     defect_info = metadata_manager.get_defect_info(app, bid)
     
     if not defect_info:
@@ -102,7 +102,7 @@ def test(
         return
     
     if trigger:
-        # 显示触发测试
+        # Display trigger tests
         trigger_tests = defect_info.get('trigger_tests', [])
         if trigger_tests:
             typer.echo("trigger_tests:")
@@ -112,7 +112,7 @@ def test(
         else:
             typer.echo("No trigger tests available for this defect.")
     else:
-        # 显示基本测试信息
+        # Display basic test information
         typer.echo(f"Test information for {app} - {bid}")
         typer.echo(f"Defect type: {defect_info.get('type', 'N/A')}")
         typer.echo(f"Case: {defect_info.get('case', 'N/A')}")
@@ -120,7 +120,7 @@ def test(
 
 
 def main():
-    """主入口函数"""
+    """Main entry function"""
     app()
 
 

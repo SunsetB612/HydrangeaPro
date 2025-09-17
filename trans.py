@@ -3,23 +3,27 @@ import re
 import pandas as pd
 import yaml
 
-# 输入 Excel 文件
+# Input Excel file
 INPUT_FILE = "defect.xlsx"
 SHEET_NAME = "defect"
 OUTPUT_DIR = "db"
 
-# 确保输出目录存在
+# Ensure output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# 读取 Excel，注意 header=1 才是真正的表头
-df = pd.read_excel(INPUT_FILE, sheet_name=SHEET_NAME, header=1)
+# Read Excel, note that header=1 is the actual header row
+try:
+    df = pd.read_excel(INPUT_FILE, sheet_name=SHEET_NAME, header=1)
+except Exception as e:
+    print(f"Error: Failed to read Excel file {INPUT_FILE}: {e}")
+    exit(1)
 
 last_type_display = ""
 
 for _, row in df.iterrows():
     app_full = str(row.get("APP", "")).strip()  # e.g. cpacker/MemGPT
     repo_url_raw = str(row.get("commit url", "")).strip()
-    # 读取并前向填充 type：若为空则复用上一非空类型
+    # Read and forward-fill type: if empty, reuse the last non-empty type
     raw_type_value = row.get("types")
     if pd.notna(raw_type_value) and str(raw_type_value).strip():
         defect_type_display = str(raw_type_value).strip()
@@ -29,13 +33,13 @@ for _, row in df.iterrows():
     case = str(row.get("cases", "")).strip()
 
     if not app_full or not repo_url_raw:
-        continue  # 跳过无效行
+        continue  # Skip invalid rows
 
-    # 提取 app 名称（去掉前缀作者）
+    # Extract app name (remove author prefix)
     app_name = app_full.split("/")[-1]
 
-    # 处理 defect_type（用于 defect_id/文件名：小写+下划线；显示字段保留原样/前向填充）
-    # 规范化：将任意连续空白压缩为一个下划线，并去重下划线、去两端下划线
+    # Process defect_type (for defect_id/filename: lowercase+underscore; display field keeps original/forward-fill)
+    # Normalize: compress any consecutive whitespace to single underscore, deduplicate underscores, trim ends
     if defect_type_display:
         tmp = defect_type_display.strip().lower()
         tmp = re.sub(r"\s+", "_", tmp)
@@ -44,7 +48,7 @@ for _, row in df.iterrows():
     else:
         defect_type_norm = "unknown"
 
-    # 规范化 case：优先数字化，空则 "/"
+    # Normalize case: prioritize digitization, use "/" if empty
     case_value = row.get("cases")
     if pd.notna(case_value):
         if isinstance(case_value, (int, float)):
@@ -55,7 +59,7 @@ for _, row in df.iterrows():
                 case = str(case_value).strip() or "/"
         else:
             raw_case = str(case_value).strip()
-            # 支持形如 "case1" / "Case 1" / "CASE-1"
+            # Support formats like "case1" / "Case 1" / "CASE-1"
             m = re.match(r"(?i)^case\s*[-_]?\s*(\d+)$", raw_case)
             if m:
                 case = m.group(1)
@@ -64,7 +68,7 @@ for _, row in df.iterrows():
     else:
         case = "/"
 
-    # 构造 defect_id（包含作者名）
+    # Construct defect_id (including author name)
     author_name = app_full.split("/")[0] if "/" in app_full else app_name
     defect_id = (
         f"{author_name}-{app_name}-{defect_type_norm}-case{case}"
@@ -72,15 +76,15 @@ for _, row in df.iterrows():
         else f"{author_name}-{app_name}-{defect_type_norm}-/"
     )
 
-    # 构造输出文件名：包含作者/项目，case 为 "/" 时不加 case 段
+    # Construct output filename: include author/project, omit case segment when case is "/"
     app_full_for_name = app_full  # e.g. imartinez/privateGPT
     case_segment = f"-case{case}" if case != "/" else ""
     file_stem = f"{app_full_for_name}-{defect_type_norm}{case_segment}"
-    # 兼容 Windows：替换 "/" 为 "-"，统一使用连字符
+    # Windows compatibility: replace "/" with "-", use hyphens consistently
     sanitized_stem = file_stem.replace("/", "-")
     file_name = sanitized_stem + ".yaml"
     file_path = os.path.join(OUTPUT_DIR, file_name)
-    # 若同名已存在，追加数字后缀确保不覆盖
+    # If file with same name exists, append numeric suffix to avoid overwriting
     if os.path.exists(file_path):
         suffix = 2
         while True:
@@ -92,7 +96,7 @@ for _, row in df.iterrows():
                 break
             suffix += 1
 
-    # 从 commit url 中拆分 repo 与 commit（形如 .../tree/<commit>）
+    # Split repo and commit from commit url (format: .../tree/<commit>)
     if "/tree/" in repo_url_raw:
         parts = repo_url_raw.split("/tree/")
         repo = parts[0]
@@ -119,7 +123,7 @@ for _, row in df.iterrows():
         else []
     )
 
-    # YAML 内容
+    # YAML content
     data = {
         "app": app_name,
         "repo": repo,
@@ -132,7 +136,7 @@ for _, row in df.iterrows():
         "trigger_tests": trigger_tests,
     }
 
-    # 写入 YAML
+    # Write YAML
     with open(file_path, "w", encoding="utf-8") as out:
         yaml.dump(data, out, allow_unicode=True, sort_keys=False)
 
